@@ -50,7 +50,7 @@ import (
 type testTerminateSignal struct{}
 
 func (t *testTerminateSignal) Close() {
-	time.Sleep(5 * time.Second)
+	fmt.Println("testTerminateSignal.Close()")
 }
 
 func main() {
@@ -80,6 +80,7 @@ func main() {
 	WaitingForGracefulShutdown(s)
 
 	fmt.Println("shutdown gracefully")
+}
 ```
 
 # Features
