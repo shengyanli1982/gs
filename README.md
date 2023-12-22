@@ -37,69 +37,6 @@ go get github.com/shengyanli1982/gs
 package main
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/shengyanli1982/gs"
-)
-
-type testTerminateSignal struct{}
-
-func (t *testTerminateSignal) Close() {
-	fmt.Println("testTerminateSignal.Close()")
-}
-
-func main() {
-	// Create TerminateSignal instance
-	s := gs.NewDefaultTerminateSignal()
-
-	// create a resource which want to be closed when the service is terminated
-	tts := &testTerminateSignal{}
-
-	// Register the close method of the resource which want to be closed when the service is terminated
-	s.CancelCallbacksRegistry(tts.Close)
-
-	// Create a goroutine to send a signal to the process after 2 seconds
-	go func() {
-		time.Sleep(2*time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
-		err = p.Signal(os.Interrupt)
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
-	}()
-
-	// Use WaitingForGracefulShutdown method to wait for the TerminateSignal instance to shutdown gracefully
-	WaitingForGracefulShutdown(s)
-
-	fmt.Println("shutdown gracefully")
-}
-```
-
-# Features
-
-`GS` provides features not many but enough for most services.
-
-## Timeout Signal
-
-`TerminateSignal` instance can be created with a timeout signal. When the timeout signal is received, the `TerminateSignal` instance will be closed not waiting for resources registered in the `TerminateSignal` instance will be closed.
-
-> [!TIP]
-> The **Timeout** can fix the problem that the service cannot be closed due to the resource cannot be closed. But it is not recommended to use timeout signal, because it may cause the resource to be closed abnormally.
-
-### Example
-
-```go
-package main
-
-import (
 	"fmt"
 	"os"
 	"time"
@@ -163,9 +100,70 @@ func main() {
 **Result**
 
 ```bash
-# go run main.go 
+# go run main.go
 testTerminateSignal3.Terminate()
 testTerminateSignal.Close()
 testTerminateSignal2.Shutdown()
 shutdown gracefully
+```
+
+# Features
+
+`GS` provides features not many but enough for most services.
+
+## Timeout Signal
+
+`TerminateSignal` instance can be created with a timeout signal. When the timeout signal is received, the `TerminateSignal` instance will be closed not waiting for resources registered in the `TerminateSignal` instance will be closed.
+
+> [!TIP]
+> The **Timeout** can fix the problem that the service cannot be closed due to the resource cannot be closed. But it is not recommended to use timeout signal, because it may cause the resource to be closed abnormally.
+
+### Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/shengyanli1982/gs"
+)
+
+// simulate a service
+type testTerminateSignal struct{}
+
+func (t *testTerminateSignal) Close() {
+	time.Sleep(5 * time.Second)
+}
+
+func main() {
+	// Create TerminateSignal instance
+	s := gs.NewTerminateSignal(time.Second)  // timeout signal is set to 1 second
+
+	// create a resource which want to be closed when the service is terminated
+	t1 := &testTerminateSignal{}
+
+	// Register the close method of the resource which want to be closed when the service is terminated
+	s.CancelCallbacksRegistry(t1.Close)
+
+	// Create a goroutine to send a signal to the process after 2 seconds
+	go func() {
+		time.Sleep(2 * time.Second)
+		p, err := os.FindProcess(os.Getpid())
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		err = p.Signal(os.Interrupt)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}()
+
+	// Use WaitingForGracefulShutdown method to wait for the TerminateSignal instance to shutdown gracefully
+	gs.WaitingForGracefulShutdown(s)
+
+	fmt.Println("shutdown gracefully")
+}
 ```
