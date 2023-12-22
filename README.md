@@ -100,43 +100,72 @@ func main() {
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/shengyanli1982/gs"
 )
 
+// simulate a service
 type testTerminateSignal struct{}
 
 func (t *testTerminateSignal) Close() {
-	time.Sleep(5 * time.Second)
+	fmt.Println("testTerminateSignal.Close()")
+}
+
+// simulate a service
+type testTerminateSignal2 struct{}
+
+func (t *testTerminateSignal2) Shutdown() {
+	fmt.Println("testTerminateSignal2.Shutdown()")
+}
+
+// simulate a service
+type testTerminateSignal3 struct{}
+
+func (t *testTerminateSignal3) Terminate() {
+	fmt.Println("testTerminateSignal3.Terminate()")
 }
 
 func main() {
-	s := gs.NewTerminateSignal(time.Second)  // timeout signal is set to 1 second
+	// Create TerminateSignal instance
+	s := gs.NewDefaultTerminateSignal()
 
-	tts := &testTerminateSignal{}
+	// create resources which want to be closed when the service is terminated
+	t1 := &testTerminateSignal{}
+	t2 := &testTerminateSignal2{}
+	t3 := &testTerminateSignal3{}
 
-	s.CancelCallbacksRegistry(tts.Close)
+	// Register the close method of the resource which want to be closed when the service is terminated
+	s.CancelCallbacksRegistry(t1.Close, t2.Shutdown, t3.Terminate)
 
+	// Create a goroutine to send a signal to the process after 2 seconds
 	go func() {
-		time.Sleep(2*time.Second)
+		time.Sleep(2 * time.Second)
 		p, err := os.FindProcess(os.Getpid())
 		if err != nil {
-			assert.Fail(t, err.Error())
+			fmt.Println(err.Error())
 		}
 		err = p.Signal(os.Interrupt)
 		if err != nil {
-			assert.Fail(t, err.Error())
+			fmt.Println(err.Error())
 		}
 	}()
 
-	WaitingForGracefulShutdown(s)
+	// Use WaitingForGracefulShutdown method to wait for the TerminateSignal instance to shutdown gracefully
+	gs.WaitingForGracefulShutdown(s)
 
 	fmt.Println("shutdown gracefully")
 }
+```
+
+**Result**
+
+```bash
+# go run main.go 
+testTerminateSignal3.Terminate()
+testTerminateSignal.Close()
+testTerminateSignal2.Shutdown()
+shutdown gracefully
 ```
