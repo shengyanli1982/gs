@@ -62,13 +62,13 @@ func (s *TerminateSignal) GetStopCtx() context.Context {
 
 // Close 关闭 TerminateSignal 实例
 // Close the TerminateSignal instance
-func (s *TerminateSignal) Close(wg *sync.WaitGroup) {
+func (s *TerminateSignal) Close(wg *sync.WaitGroup) { // wg 用于通知 WaitingUint 关闭完成 (wg is used to notify WaitingUint that the shutdown is complete)
 	s.once.Do(func() {
-		// 执行回调函数 (Execute the callback function)
+		// 批量执行关闭 (Batch execution of shutdown)
 		for _, cb := range s.exec {
 			if cb != nil {
 				s.wg.Add(1)
-				go s.worker(cb) // 执行回调函数 (Execute the callback function)
+				go s.worker(cb) // 执行注册的关闭函数 (Execute the registered shutdown function)
 			}
 		}
 		s.cancel()  // 发送关闭信号 (Send the shutdown signal)
