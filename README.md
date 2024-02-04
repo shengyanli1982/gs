@@ -39,8 +39,8 @@ go get github.com/shengyanli1982/gs
 -   `NewDefaultTerminateSignal` : Create a new `TerminateSignal` instance with default signals
 -   `NewTerminateSignalWithContext` : Create a new `TerminateSignal` instance with context
 
-    > ![TIP]
-    > The `InfinityTerminateTimeout` value is used to set the timeout signal to infinity. It means that the `TerminateSignal` instance will not be closed until `Close` method is called and the resources registered in the `TerminateSignal` instance are closed.
+> [!TIP]
+> The `InfinityTerminateTimeout` value is used to set the timeout signal to infinity. It means that the `TerminateSignal` instance will not be closed until `Close` method is called and the resources registered in the `TerminateSignal` instance are closed.
 
 **TerminateSignal**
 
