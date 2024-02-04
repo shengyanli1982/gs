@@ -17,13 +17,13 @@ func (t *testTerminateSignal) Close() {
 }
 
 func TestTerminateSignal_Standard(t *testing.T) {
-	signal := NewTerminateSignal(-1)
+	signal := NewTerminateSignal(InfinityTerminateTimeout)
 	if signal == nil {
 		assert.Fail(t, "signal is nil")
 	}
-	assert.Equal(t, signal.GetStopCtx().Err(), nil)
+	assert.Equal(t, signal.GetStopContext().Err(), nil)
 	tts := &testTerminateSignal{}
-	signal.CancelCallbacksRegistry(tts.Close)
+	signal.RegisterCancelCallback(tts.Close)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	signal.Close(&wg)
@@ -31,14 +31,15 @@ func TestTerminateSignal_Standard(t *testing.T) {
 }
 
 func TestTerminateSignal_WithTimeout(t *testing.T) {
-	timeout := time.Second
+	timeout := time.Millisecond * 500
 	signal := NewTerminateSignal(timeout)
 	if signal == nil {
 		assert.Fail(t, "signal is nil")
 	}
-	assert.Equal(t, signal.GetStopCtx().Err(), nil)
+	assert.Equal(t, signal.GetStopContext().Err(), nil)
 	tts := &testTerminateSignal{}
-	signal.CancelCallbacksRegistry(tts.Close)
+	signal.RegisterCancelCallback(tts.Close)
+	time.Sleep(time.Second)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	signal.Close(&wg)
@@ -52,9 +53,9 @@ func TestTerminateSignal_WithContext(t *testing.T) {
 	if signal == nil {
 		assert.Fail(t, "signal is nil")
 	}
-	assert.Equal(t, signal.GetStopCtx().Err(), nil)
+	assert.Equal(t, signal.GetStopContext().Err(), nil)
 	tts := &testTerminateSignal{}
-	signal.CancelCallbacksRegistry(tts.Close)
+	signal.RegisterCancelCallback(tts.Close)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	signal.Close(&wg)

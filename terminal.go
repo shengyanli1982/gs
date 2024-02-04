@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// ConstInfinityTerminateTimeout 无限大的超时时间 (Infinite timeout)
-const ConstInfinityTerminateTimeout = time.Duration(-1)
+// InfinityTerminateTimeout 无限大的超时时间 (Infinite timeout)
+const InfinityTerminateTimeout = time.Duration(-1)
 
 type TerminateSignal struct {
 	ctx    context.Context
@@ -45,18 +45,18 @@ func NewTerminateSignal(timeout time.Duration) *TerminateSignal {
 // 创建一个默认的 TerminateSignal 实例，超时时间为无限大
 // Create a default TerminateSignal instance with infinite timeout
 func NewDefaultTerminateSignal() *TerminateSignal {
-	return NewTerminateSignalWithContext(context.Background(), ConstInfinityTerminateTimeout)
+	return NewTerminateSignalWithContext(context.Background(), InfinityTerminateTimeout)
 }
 
 // 注册需要取消的回调函数
 // Register the callback function to be canceled
-func (s *TerminateSignal) CancelCallbacksRegistry(callbacks ...func()) {
+func (s *TerminateSignal) RegisterCancelCallback(callbacks ...func()) {
 	s.exec = append(s.exec, callbacks...)
 }
 
 // 获取停止信号的 Context
 // Get the Context of the stop signal
-func (s *TerminateSignal) GetStopCtx() context.Context {
+func (s *TerminateSignal) GetStopContext() context.Context {
 	return s.ctx
 }
 
@@ -65,10 +65,10 @@ func (s *TerminateSignal) GetStopCtx() context.Context {
 func (s *TerminateSignal) Close(wg *sync.WaitGroup) {
 	s.once.Do(func() {
 		// 执行回调函数 (Execute the callback function)
-		for _, cb := range s.exec {
-			if cb != nil {
+		for _, callback := range s.exec {
+			if callback != nil {
 				s.wg.Add(1)
-				go s.worker(cb) // 执行回调函数 (Execute the callback function)
+				go s.worker(callback) // 执行回调函数 (Execute the callback function)
 			}
 		}
 		s.cancel()  // 发送关闭信号 (Send the shutdown signal)
@@ -82,6 +82,9 @@ func (s *TerminateSignal) Close(wg *sync.WaitGroup) {
 // worker 执行回调函数
 func (s *TerminateSignal) worker(callback func()) {
 	defer s.wg.Done() // 通知关闭完成 (Notify the shutdown is complete)
-	<-s.ctx.Done()    // 等待关闭信号 (Wait for the shutdown signal)
-	callback()        // 执行回调函数 (Execute the callback function)
+	select {
+	case <-s.ctx.Done(): // 等待关闭信号 (Wait for the shutdown signal)
+		callback() // 执行回调函数 (Execute the callback function)
+	default:
+	}
 }

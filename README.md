@@ -1,7 +1,7 @@
 <div align="center">
-	<h1>G.S</h1>
+	<h1>GS</h1>
+	<p>A lightweight generic graceful shutdown component<p>
 	<img src="assets/logo.png" alt="logo" width="300px">
-    <h4>A lightweight generic graceful shutdown component</h4>
 </div>
 
 # Introduction
@@ -30,6 +30,27 @@ go get github.com/shengyanli1982/gs
 # Quick Start
 
 `GS` is very simple, less code and easy to use. Just create `TerminateSignal` instances, register the resources which want to be closed when the service is terminated, and use `WaitingForGracefulShutdown` method to wait for the `TerminateSignal` instances to shutdown gracefully.
+
+### Methods
+
+**Create**
+
+-   `NewTerminateSignal` : Create a new `TerminateSignal` instance
+-   `NewDefaultTerminateSignal` : Create a new `TerminateSignal` instance with default signals
+-   `NewTerminateSignalWithContext` : Create a new `TerminateSignal` instance with context
+
+    > ![TIP]
+    > The `InfinityTerminateTimeout` value is used to set the timeout signal to infinity. It means that the `TerminateSignal` instance will not be closed until `Close` method is called and the resources registered in the `TerminateSignal` instance are closed.
+
+**TerminateSignal**
+
+-   `RegisterCancelCallback` : Register the resources which want to be closed when the service is terminated
+-   `GetStopContext` : Get the context of the `TerminateSignal` instance
+-   `Close` : Close the `TerminateSignal` instance
+
+**Waiting**
+
+-   `WaitingForGracefulShutdown` : Use this method to wait for all `TerminateSignal` instances to shutdown gracefully
 
 ### Example
 
@@ -61,7 +82,7 @@ func main() {
 	tts := &testTerminateSignal{}
 
 	// Register the close method of the resource which want to be closed when the service is terminated
-	s.CancelCallbacksRegistry(tts.Close)
+	s.RegisterCancelCallback(tts.Close)
 
 	// Create a goroutine to send a signal to the process after 2 seconds
 	go func() {
@@ -121,7 +142,7 @@ func main() {
 
 	tts := &testTerminateSignal{}
 
-	s.CancelCallbacksRegistry(tts.Close)
+	s.RegisterCancelCallback(tts.Close)
 
 	go func() {
 		time.Sleep(2*time.Second)

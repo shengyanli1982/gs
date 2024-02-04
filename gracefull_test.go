@@ -11,7 +11,7 @@ import (
 func TestWaitingForGracefulShutdown(t *testing.T) {
 	tts := &testTerminateSignal{}
 	s := NewDefaultTerminateSignal()
-	s.CancelCallbacksRegistry(tts.Close)
+	s.RegisterCancelCallback(tts.Close)
 
 	go func() {
 		time.Sleep(time.Second)
