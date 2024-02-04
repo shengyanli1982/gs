@@ -18,9 +18,14 @@ func WaitingForGracefulShutdown(sigs ...*TerminateSignal) {
 	if len(sigs) > 0 {                                                    // 执行关闭动作 (Execute the shutdown action)
 		wg := sync.WaitGroup{}
 		wg.Add(len(sigs))
+<<<<<<< HEAD
 		// 批量执行 TerminateSignal 实例的关闭动作 (Batch execution of the shutdown action of each TerminateSignal instance)
 		for _, s := range sigs {
 			go s.Close(&wg) // 执行信号的关闭动作，wg 计数器减一 (Execute the shutdown action of each signal, wg counter minus one)
+=======
+		for _, ts := range sigs {
+			go ts.Close(&wg) // 执行关闭动作 (Execute the shutdown action)
+>>>>>>> main
 		}
 		wg.Wait()
 	}
