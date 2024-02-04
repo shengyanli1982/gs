@@ -96,11 +96,7 @@ func main() {
 	t3 := &testTerminateSignal3{}
 
 	// Register the close method of the resource which want to be closed when the service is terminated
-<<<<<<< HEAD
-	s.CancelCallbacksRegistry(t1.Close, t2.Shutdown, t3.Terminate)
-=======
 	s.RegisterCancelCallback(tts.Close)
->>>>>>> main
 
 	// Create a goroutine to send a signal to the process after 2 seconds
 	go func() {
@@ -170,12 +166,7 @@ func main() {
 	// create a resource which want to be closed when the service is terminated
 	t1 := &testTerminateSignal{}
 
-<<<<<<< HEAD
-	// Register the close method of the resource which want to be closed when the service is terminated
-	s.CancelCallbacksRegistry(t1.Close)
-=======
 	s.RegisterCancelCallback(tts.Close)
->>>>>>> main
 
 	// Create a goroutine to send a signal to the process after 2 seconds
 	go func() {

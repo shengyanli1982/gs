@@ -64,19 +64,11 @@ func (s *TerminateSignal) GetStopContext() context.Context {
 // Close the TerminateSignal instance
 func (s *TerminateSignal) Close(wg *sync.WaitGroup) { // wg 用于通知 WaitingUint 关闭完成 (wg is used to notify WaitingUint that the shutdown is complete)
 	s.once.Do(func() {
-<<<<<<< HEAD
-		// 批量执行关闭 (Batch execution of shutdown)
-		for _, cb := range s.exec {
-			if cb != nil {
-				s.wg.Add(1)
-				go s.worker(cb) // 执行注册的关闭函数 (Execute the registered shutdown function)
-=======
 		// 执行回调函数 (Execute the callback function)
 		for _, callback := range s.exec {
 			if callback != nil {
 				s.wg.Add(1)
 				go s.worker(callback) // 执行回调函数 (Execute the callback function)
->>>>>>> main
 			}
 		}
 		s.cancel()  // 发送关闭信号 (Send the shutdown signal)
