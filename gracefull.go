@@ -7,14 +7,28 @@ import (
 	"syscall"
 )
 
+// CloseType 是一个 int8 类型的别名，用于表示关闭类型
+// CloseType is an alias for int8, used to represent the type of closure
 type CloseType int8
 
+// 定义了三种关闭类型：异步关闭、同步关闭和强制同步关闭
+// Three types of closure are defined: asynchronous closure, synchronous closure, and forced synchronous closure
 const (
+	// ASyncClose 表示异步关闭，即在新的 goroutine 中执行关闭操作
+	// ASyncClose represents asynchronous closure, i.e., the closure operation is performed in a new goroutine
 	ASyncClose CloseType = iota
+
+	// SyncClose 表示同步关闭，即在当前 goroutine 中执行关闭操作
+	// SyncClose represents synchronous closure, i.e., the closure operation is performed in the current goroutine
 	SyncClose
+
+	// ForceSyncClose 表示强制同步关闭，即无论当前的关闭模式是什么，都在当前 goroutine 中执行关闭操作
+	// ForceSyncClose represents forced synchronous closure, i.e., regardless of the current closure mode, the closure operation is performed in the current goroutine
 	ForceSyncClose
 )
 
+// waiting 函数用于等待系统信号，并根据关闭模式和 TerminateSignal 进行不同的处理
+// The waiting function waits for system signals and handles them differently according to the close mode and TerminateSignal
 func waiting(mode CloseType, sigs ...*TerminateSignal) {
 	// 创建一个 os.Signal 类型的通道，用于接收系统信号
 	// Create a channel of type os.Signal to receive system signals

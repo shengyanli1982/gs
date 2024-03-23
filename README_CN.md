@@ -67,7 +67,8 @@ go get github.com/shengyanli1982/gs
 > -   使用 `WaitForForceSync` 严格同步等待所有注册的资源按照注册顺序关闭。执行顺序取决于注册的顺序。首次注册的函数将首先执行，然后是第二次注册的函数，依此类推，直到所有函数都执行完毕。
 > -   使用 `WaitForSync` 同步等待所有注册的资源关闭。它逐个执行注册的函数，但在执行函数时，通过 `RegisterCancelCallback` 注册的内部函数是异步执行的。
 
-> [!IMPORTANT] > `WaitingForGracefulShutdown` 方法自 v0.1.3 版本起已弃用。建议使用 `WaitForAsync`、`WaitForSync` 或 `WaitForForceSync` 方法代替。
+> [!IMPORTANT]
+> 自 v0.1.3 版本起 `WaitingForGracefulShutdown` 方法已弃用。建议使用 `WaitForAsync`、`WaitForSync` 或 `WaitForForceSync` 方法代替。
 
 ### 示例
 
