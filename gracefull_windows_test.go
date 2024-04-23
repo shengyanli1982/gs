@@ -1,15 +1,30 @@
-//go:build !windows
+//go:build windows
 
 package gs
 
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sys/windows"
 )
+
+var procGenerateConsoleCtrlEvent = windows.NewLazyDLL("kernel32.dll").NewProc("GenerateConsoleCtrlEvent")
+
+func GenerateConsoleCtrlEvent(ctrlEvent uint32, processGroupID uint32) error {
+	ret, _, err := procGenerateConsoleCtrlEvent.Call(
+		uintptr(ctrlEvent),
+		uintptr(processGroupID),
+	)
+	if ret == 0 {
+		return err
+	}
+	return nil
+}
 
 func TestWaitForAsync_Signal(t *testing.T) {
 	sig := NewTerminateSignal()
@@ -25,7 +40,7 @@ func TestWaitForAsync_Signal(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
@@ -50,7 +65,7 @@ func TestWaitForAsync_Wait(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
@@ -73,7 +88,7 @@ func TestWaitForSync_Signal(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}

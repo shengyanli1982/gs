@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/shengyanli1982/gs"
@@ -70,7 +69,7 @@ func main() {
 
 		// 向当前进程发送中断信号
 		// Send an interrupt signal to the current process
-		err = p.Signal(syscall.SIGTERM)
+		err = p.Signal(os.Interrupt)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
