@@ -18,12 +18,16 @@ const (
 	// ASyncClose represents asynchronous closure, i.e., the closure operation is performed in a new goroutine
 	ASyncClose CloseType = iota
 
-	// SyncClose 表示同步关闭，即在当前 goroutine 中执行关闭操作
-	// SyncClose represents synchronous closure, i.e., the closure operation is performed in the current goroutine
+	// SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+	// 在每个 TerminateSignal 中，是异步执行的
+	// SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+	// In each TerminateSignal, it is asynchronous
 	SyncClose
 
-	// ForceSyncClose 表示强制同步关闭，即无论当前的关闭模式是什么，都在当前 goroutine 中执行关闭操作
-	// ForceSyncClose represents forced synchronous closure, i.e., regardless of the current closure mode, the closure operation is performed in the current goroutine
+	// ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+	// 在每个 TerminateSignal 中，是完全同步执行的
+	// ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+	// In each TerminateSignal, it is completely synchronous
 	ForceSyncClose
 )
 
@@ -56,6 +60,8 @@ func waiting(mode CloseType, sigs ...*TerminateSignal) {
 		// 根据关闭模式进行不同的处理
 		// Handle differently according to the close mode
 		switch mode {
+		// ASyncClose 表示异步关闭
+		// ASyncClose indicates asynchronous close
 		case ASyncClose:
 			// 创建一个 WaitGroup，用于等待所有的 TerminateSignal 关闭
 			// Create a WaitGroup to wait for all TerminateSignal to close
@@ -75,6 +81,8 @@ func waiting(mode CloseType, sigs ...*TerminateSignal) {
 			// Wait for all TerminateSignal to close
 			wg.Wait()
 
+		// SyncClose 表示同步关闭
+		// SyncClose indicates synchronous close
 		case SyncClose:
 			// 对每一个 TerminateSignal，同步进行关闭操作
 			// For each TerminateSignal, perform the close operation synchronously
@@ -82,6 +90,8 @@ func waiting(mode CloseType, sigs ...*TerminateSignal) {
 				ts.Close(nil)
 			}
 
+		// ForceSyncClose 表示强制同步关闭
+		// ForceSyncClose indicates forced synchronous close
 		case ForceSyncClose:
 			// 对每一个 TerminateSignal，强制同步进行关闭操作
 			// For each TerminateSignal, forcibly perform the close operation synchronously

@@ -62,6 +62,8 @@ func NewTerminateSignalWithContext(ctx context.Context) *TerminateSignal {
 	// Set the value of closed to false, indicating that the TerminateSignal is not closed yet
 	t.closed.Store(false)
 
+	// 使用 context.WithCancel 创建一个新的 context 和取消函数
+	// Use context.WithCancel to create a new context and cancel function
 	t.ctx, t.cancel = context.WithCancel(ctx)
 
 	// 返回 TerminateSignal 实例的指针
@@ -142,11 +144,15 @@ func (s *TerminateSignal) close(closeMode CloseType, wg *sync.WaitGroup) {
 				// 根据关闭模式进行不同的处理
 				// Handle differently according to the close mode
 				switch closeMode {
+				// ASyncClose 表示异步关闭
+				// ASyncClose indicates asynchronous close
 				case ASyncClose:
 					// 在新的 goroutine 中执行 worker 函数，这样可以并发执行多个任务
 					// Execute the worker function in a new goroutine, so that multiple tasks can be executed concurrently
 					go s.worker(fn)
 
+				// SyncClose 表示同步关闭
+				// SyncClose indicates synchronous close
 				case SyncClose:
 					// 在当前 goroutine 中执行 worker 函数，这样可以保证任务按顺序执行
 					// Execute the worker function in the current goroutine, so that tasks can be executed in order

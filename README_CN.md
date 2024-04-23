@@ -45,10 +45,7 @@ go get github.com/shengyanli1982/gs
 -   `NewTerminateSignal`：创建一个新的 `TerminateSignal` 实例。
 -   `NewTerminateSignalWithContext`：创建一个带有上下文的新的 `TerminateSignal` 实例。
 
-> [!TIP]
-> 可以使用 `InfinityTerminateTimeout` 值将超时信号设置为无限大，这意味着只有在调用 `Close` 方法并关闭注册的资源后，`TerminateSignal` 实例才会关闭。
-
-**TerminateSignal**
+**终结信号**
 
 -   `RegisterCancelCallback`：注册需要在服务终止时关闭的资源。
 -   `GetStopContext`：获取 `TerminateSignal` 实例的上下文。
@@ -61,11 +58,23 @@ go get github.com/shengyanli1982/gs
 -   `WaitForSync`：同步等待 `TerminateSignal` 实例优雅关闭。
 -   `WaitForForceSync`：严格同步等待 `TerminateSignal` 实例优雅关闭。
 
-> [!NOTE]
->
-> -   使用 `WaitForAsync` 异步等待所有注册的资源关闭。
-> -   使用 `WaitForForceSync` 严格同步等待所有注册的资源按照注册顺序关闭。执行顺序取决于注册的顺序。首次注册的函数将首先执行，然后是第二次注册的函数，依此类推，直到所有函数都执行完毕。
-> -   使用 `WaitForSync` 同步等待所有注册的资源关闭。它逐个执行注册的函数，但在执行函数时，通过 `RegisterCancelCallback` 注册的内部函数是异步执行的。
+**`同步关闭 (SyncClose)` 和 `严格同步关闭 (ForceSyncClose)` 的区别**
+
+```go
+// SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+// 在每个 TerminateSignal 中，是异步执行的
+// SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+// In each TerminateSignal, it is asynchronous
+SyncClose
+
+// ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+// 在每个 TerminateSignal 中，是完全同步执行的
+// ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+// In each TerminateSignal, it is completely synchronous
+ForceSyncClose
+```
+
+`ForceSyncClose` 是完全同步的，而 `SyncClose` 在每个 `TerminateSignal` 中是异步的。
 
 > [!IMPORTANT]
 > 自 v0.1.3 版本起 `WaitingForGracefulShutdown` 方法已弃用。建议使用 `WaitForAsync`、`WaitForSync` 或 `WaitForForceSync` 方法代替。
