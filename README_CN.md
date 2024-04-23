@@ -4,6 +4,10 @@
 	<img src="assets/logo.png" alt="logo" width="450px">
 </div>
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/gs)](https://goreportcard.com/report/github.com/shengyanli1982/gs)
+[![Build Status](https://github.com/shengyanli1982/gs/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/gs/actions)
+[![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/gs.svg)](https://pkg.go.dev/github.com/shengyanli1982/gs)
+
 # 介绍
 
 **优雅关闭** 是大多数服务的常见需求。当服务接收到终止信号时，优雅地关闭服务被认为是最佳实践。优雅关闭的过程通常包括以下步骤：

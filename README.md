@@ -4,6 +4,10 @@ English | [中文](./README_CN.md)
 	<img src="assets/logo.png" alt="logo" width="450px">
 </div>
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/gs)](https://goreportcard.com/report/github.com/shengyanli1982/gs)
+[![Build Status](https://github.com/shengyanli1982/gs/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/gs/actions)
+[![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/gs.svg)](https://pkg.go.dev/github.com/shengyanli1982/gs)
+
 # Introduction
 
 **Graceful Shutdown** is a common requirement for most services. It is considered a best practice to gracefully shut down a service when it receives a termination signal. The process of graceful shutdown typically involves the following steps:
