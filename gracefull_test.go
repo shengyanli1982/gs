@@ -3,6 +3,7 @@ package gs
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestWaitForAsync_Signal(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
@@ -48,7 +49,7 @@ func TestWaitForAsync_Wait(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
@@ -71,7 +72,7 @@ func TestWaitForSync_Signal(t *testing.T) {
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}
-		err = p.Signal(os.Interrupt)
+		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}

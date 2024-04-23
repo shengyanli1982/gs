@@ -17,6 +17,7 @@ English | [中文](./README_CN.md)
 3. Use the `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` method to wait for the `TerminateSignal` instance to gracefully shut down.
 
 > [!IMPORTANT]
+> 
 > It is strongly recommended to use the latest general version **v0.1.3** of the library. Previous versions have significant logic and control issues and are no longer recommended.
 
 # Advantages
@@ -41,6 +42,10 @@ go get github.com/shengyanli1982/gs
 1. Create a `TerminateSignal` instance.
 2. Register the resources that need to be closed when the service is terminated.
 3. Use the appropriate waiting method (`WaitForAsync`, `WaitForSync`, or `WaitForForceSync`) to wait for the `TerminateSignal` instance to gracefully shut down.
+
+> [!IMPORTANT]
+>
+> If you are using `GS` on `Windows`, make sure to use it with a `console` application.
 
 ### Methods
 
@@ -159,7 +164,7 @@ func main() {
 
 		// 向当前进程发送中断信号
 		// Send an interrupt signal to the current process
-		err = p.Signal(os.Interrupt)
+		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
 			fmt.Println(err.Error())
 		}

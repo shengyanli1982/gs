@@ -17,6 +17,7 @@
 3. 使用`WaitForAsync`、`WaitForSync`或`WaitForForceSync`方法等待`TerminateSignal`实例优雅地关闭。
 
 > [!IMPORTANT]
+> 
 > 强烈建议使用最新的通用版本**v0.1.3**的库。之前的版本存在重要的逻辑和控制问题，不再推荐使用。
 
 # 优势
@@ -41,6 +42,10 @@ go get github.com/shengyanli1982/gs
 1. 创建一个 `TerminateSignal` 实例。
 2. 注册需要在服务终止时关闭的资源。
 3. 使用适当的等待方法（`WaitForAsync`、`WaitForSync` 或 `WaitForForceSync`）等待 `TerminateSignal` 实例优雅关闭。
+
+> [!IMPORTANT]
+> 
+> 如果您在 `Windows` 上使用 `GS`，只能使用于 `console` 应用程序。
 
 ### 方法
 
@@ -159,7 +164,7 @@ func main() {
 
 		// 向当前进程发送中断信号
 		// Send an interrupt signal to the current process
-		err = p.Signal(os.Interrupt)
+		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
