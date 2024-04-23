@@ -58,23 +58,25 @@ go get github.com/shengyanli1982/gs
 -   `WaitForSync`：同步等待 `TerminateSignal` 实例优雅关闭。
 -   `WaitForForceSync`：严格同步等待 `TerminateSignal` 实例优雅关闭。
 
-**`同步关闭 (SyncClose)` 和 `严格同步关闭 (ForceSyncClose)` 的区别**
-
-```go
-// SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
-// 在每个 TerminateSignal 中，是异步执行的
-// SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
-// In each TerminateSignal, it is asynchronous
-SyncClose
-
-// ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
-// 在每个 TerminateSignal 中，是完全同步执行的
-// ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
-// In each TerminateSignal, it is completely synchronous
-ForceSyncClose
-```
-
-`ForceSyncClose` 是完全同步的，而 `SyncClose` 在每个 `TerminateSignal` 中是异步的。
+> [!NOTE]
+>
+> **`同步关闭 (SyncClose)` 和 `严格同步关闭 (ForceSyncClose)` 的区别**
+>
+> ```go
+> // SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() >then t3.Close()
+> // 在每个 TerminateSignal 中，是异步执行的
+> // SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously >in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // In each TerminateSignal, it is asynchronous
+> SyncClose
+>
+> // ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.>Close() then t3.Close()
+> // 在每个 TerminateSignal 中，是完全同步执行的
+> // ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed >synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // In each TerminateSignal, it is completely synchronous
+> ForceSyncClose
+> ```
+>
+> `ForceSyncClose` 是完全同步的，而 `SyncClose` 在每个 `TerminateSignal` 中是异步的。
 
 > [!IMPORTANT]
 > 自 v0.1.3 版本起 `WaitingForGracefulShutdown` 方法已弃用。建议使用 `WaitForAsync`、`WaitForSync` 或 `WaitForForceSync` 方法代替。

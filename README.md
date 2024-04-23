@@ -58,23 +58,25 @@ go get github.com/shengyanli1982/gs
 -   `WaitForSync`: Wait for the `TerminateSignal` instance to gracefully shut down synchronously.
 -   `WaitForForceSync`: Wait for the `TerminateSignal` instance to gracefully shut down strict synchronously.
 
-**Differences between `synchronously (SyncClose)` and `strict synchronously (ForceSyncClose)`**
-
-```go
-// SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
-// 在每个 TerminateSignal 中，是异步执行的
-// SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
-// In each TerminateSignal, it is asynchronous
-SyncClose
-
-// ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
-// 在每个 TerminateSignal 中，是完全同步执行的
-// ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
-// In each TerminateSignal, it is completely synchronous
-ForceSyncClose
-```
-
-`ForceSyncClose` is completely synchronous, while `SyncClose` is asynchronous in each `TerminateSignal`.
+> [!NOTE]
+>
+> **Differences between `synchronously (SyncClose)` and `strict synchronously (ForceSyncClose)`**
+>
+> ```go
+> // SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+> // 在每个 TerminateSignal 中，是异步执行的
+> // SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // In each TerminateSignal, it is asynchronous
+> SyncClose
+>
+> // ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
+> // 在每个 TerminateSignal 中，是完全同步执行的
+> // ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // In each TerminateSignal, it is completely synchronous
+> ForceSyncClose
+> ```
+>
+> `ForceSyncClose` is completely synchronous, while `SyncClose` is asynchronous in each `TerminateSignal`.
 
 > [!IMPORTANT]
 > The `WaitingForGracefulShutdown` method is deprecated since v0.1.3. It is recommended to use the `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` methods instead.
