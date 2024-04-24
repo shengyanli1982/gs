@@ -1,15 +1,29 @@
-//go:build !windows
+//go:build windows
 
 package gs
 
 import (
 	"fmt"
-	"os"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sys/windows"
 )
+
+var procGenerateConsoleCtrlEvent = windows.NewLazyDLL("kernel32.dll").NewProc("GenerateConsoleCtrlEvent")
+
+func GenerateConsoleCtrlEvent(ctrlEvent uint32, processGroupID uint32) error {
+	ret, _, err := procGenerateConsoleCtrlEvent.Call(
+		uintptr(ctrlEvent),
+		uintptr(processGroupID),
+	)
+	if ret == 0 {
+		return err
+	}
+	return nil
+}
 
 func TestWaitForAsync_Signal(t *testing.T) {
 	sig := NewTerminateSignal()
@@ -21,10 +35,8 @@ func TestWaitForAsync_Signal(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForAsync(sig)
@@ -41,11 +53,8 @@ func TestWaitForAsync_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForAsync(sigs...)
@@ -60,11 +69,8 @@ func TestWaitForSync_Signal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForSync(sig)
@@ -81,11 +87,8 @@ func TestWaitForSync_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForSync(sigs...)
@@ -100,11 +103,8 @@ func TestWaitForForceSync_Signal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForForceSync(sig)
@@ -121,11 +121,8 @@ func TestWaitForForceSync_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		assert.NoError(t, err, "os.FindProcess failed")
-		err = p.Signal(os.Interrupt)
-		assert.NoError(t, err, "os.Signal failed")
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForForceSync(sigs...)
