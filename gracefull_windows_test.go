@@ -4,7 +4,6 @@ package gs
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -36,14 +35,8 @@ func TestWaitForAsync_Signal(t *testing.T) {
 
 	go func() {
 		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
-		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForAsync(sig)
@@ -60,15 +53,8 @@ func TestWaitForAsync_Wait(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
-		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForAsync(sigs...)
@@ -83,16 +69,61 @@ func TestWaitForSync_Signal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(time.Second)
-		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
-		err = GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(p.Pid))
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
 	}()
 
 	WaitForSync(sig)
+}
+
+func TestWaitForSync_Wait(t *testing.T) {
+	sigs := make([]*TerminateSignal, 0)
+
+	for i := 0; i < 10; i++ {
+		sig := NewTerminateSignal()
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+		sigs = append(sigs, sig)
+	}
+
+	go func() {
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
+	}()
+
+	WaitForSync(sigs...)
+}
+
+func TestWaitForForceSync_Signal(t *testing.T) {
+	sig := NewTerminateSignal()
+
+	for i := 0; i < 10; i++ {
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+	}
+
+	go func() {
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
+	}()
+
+	WaitForForceSync(sig)
+}
+
+func TestWaitForForceSync_Wait(t *testing.T) {
+	sigs := make([]*TerminateSignal, 0)
+
+	for i := 0; i < 10; i++ {
+		sig := NewTerminateSignal()
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+		sigs = append(sigs, sig)
+	}
+
+	go func() {
+		err := GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, 0)
+		assert.NoError(t, err, "GenerateConsoleCtrlEvent failed")
+	}()
+
+	WaitForForceSync(sigs...)
 }

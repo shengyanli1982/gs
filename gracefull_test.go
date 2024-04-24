@@ -22,13 +22,9 @@ func TestWaitForAsync_Signal(t *testing.T) {
 	go func() {
 		time.Sleep(time.Second)
 		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.FindProcess failed")
 		err = p.Signal(os.Interrupt)
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.Signal failed")
 	}()
 
 	WaitForAsync(sig)
@@ -47,13 +43,9 @@ func TestWaitForAsync_Wait(t *testing.T) {
 	go func() {
 		time.Sleep(time.Second)
 		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.FindProcess failed")
 		err = p.Signal(os.Interrupt)
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.Signal failed")
 	}()
 
 	WaitForAsync(sigs...)
@@ -70,14 +62,71 @@ func TestWaitForSync_Signal(t *testing.T) {
 	go func() {
 		time.Sleep(time.Second)
 		p, err := os.FindProcess(os.Getpid())
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.FindProcess failed")
 		err = p.Signal(os.Interrupt)
-		if err != nil {
-			assert.Fail(t, err.Error())
-		}
+		assert.NoError(t, err, "os.Signal failed")
 	}()
 
 	WaitForSync(sig)
+}
+
+func TestWaitForSync_Wait(t *testing.T) {
+	sigs := make([]*TerminateSignal, 0)
+
+	for i := 0; i < 10; i++ {
+		sig := NewTerminateSignal()
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+		sigs = append(sigs, sig)
+	}
+
+	go func() {
+		time.Sleep(time.Second)
+		p, err := os.FindProcess(os.Getpid())
+		assert.NoError(t, err, "os.FindProcess failed")
+		err = p.Signal(os.Interrupt)
+		assert.NoError(t, err, "os.Signal failed")
+	}()
+
+	WaitForSync(sigs...)
+}
+
+func TestWaitForForceSync_Signal(t *testing.T) {
+	sig := NewTerminateSignal()
+
+	for i := 0; i < 10; i++ {
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+	}
+
+	go func() {
+		time.Sleep(time.Second)
+		p, err := os.FindProcess(os.Getpid())
+		assert.NoError(t, err, "os.FindProcess failed")
+		err = p.Signal(os.Interrupt)
+		assert.NoError(t, err, "os.Signal failed")
+	}()
+
+	WaitForForceSync(sig)
+}
+
+func TestWaitForForceSync_Wait(t *testing.T) {
+	sigs := make([]*TerminateSignal, 0)
+
+	for i := 0; i < 10; i++ {
+		sig := NewTerminateSignal()
+		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
+		sig.RegisterCancelCallback(tts.Close)
+		sigs = append(sigs, sig)
+	}
+
+	go func() {
+		time.Sleep(time.Second)
+		p, err := os.FindProcess(os.Getpid())
+		assert.NoError(t, err, "os.FindProcess failed")
+		err = p.Signal(os.Interrupt)
+		assert.NoError(t, err, "os.Signal failed")
+	}()
+
+	WaitForForceSync(sigs...)
 }
