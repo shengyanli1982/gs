@@ -40,7 +40,7 @@ func waiting(mode CloseType, sigs ...*TerminateSignal) {
 
 	// 注册我们关心的系统信号，当这些信号发生时，会发送到 quit 通道
 	// Register the system signals we care about, when these signals occur, they will be sent to the quit channel
-	signal.Notify(quit, syscall.SIGINT, os.Interrupt, syscall.SIGQUIT)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGINT, syscall.SIGQUIT)
 
 	// 阻塞等待任何系统信号
 	// Block and wait for any system signal
@@ -99,6 +99,8 @@ func waiting(mode CloseType, sigs ...*TerminateSignal) {
 				ts.SyncClose(nil)
 			}
 
+		// 默认行为
+		// Default behavior
 		default:
 			// 默认情况下，不进行任何操作
 			// By default, do nothing

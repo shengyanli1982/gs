@@ -22,9 +22,9 @@ type TerminateSignal struct {
 	// wg is a sync.WaitGroup instance, used to wait for all goroutines to complete
 	wg sync.WaitGroup
 
-	// exec 是一个函数切片，包含了所有需要在终止信号发生时执行的回调函数
-	// exec is a function slice, containing all callback functions that need to be executed when the termination signal occurs
-	exec []func()
+	// handles 是一个函数切片，包含了所有需要在终止信号发生时执行的回调函数
+	// handles is a function slice, containing all callback functions that need to be executed when the termination signal occurs
+	handles []func()
 
 	// once 是一个 sync.Once 实例，用于确保某个操作只执行一次
 	// once is a sync.Once instance, used to ensure that an operation is only performed once
@@ -47,7 +47,7 @@ func NewTerminateSignalWithContext(ctx context.Context) *TerminateSignal {
 
 		// exec 是一个函数切片，包含了所有需要在终止信号发生时执行的回调函数
 		// exec is a function slice, containing all callback functions that need to be executed when the termination signal occurs
-		exec: make([]func(), 0),
+		handles: make([]func(), 0),
 
 		// once 是一个 sync.Once 实例，用于确保某个操作只执行一次
 		// once is a sync.Once instance, used to ensure that an operation is only performed once
@@ -90,7 +90,7 @@ func (s *TerminateSignal) RegisterCancelCallback(callbacks ...func()) {
 
 	// 将回调函数添加到 s.exec 切片中
 	// Add the callback functions to the s.exec slice
-	s.exec = append(s.exec, callbacks...)
+	s.handles = append(s.handles, callbacks...)
 }
 
 // GetStopContext 获取停止信号的 Context
@@ -133,7 +133,7 @@ func (s *TerminateSignal) close(closeMode CloseType, wg *sync.WaitGroup) {
 
 		// 遍历所有的回调函数
 		// Iterate over all callback functions
-		for _, fn := range s.exec {
+		for _, fn := range s.handles {
 			// 如果回调函数不为空
 			// If the callback function is not null
 			if fn != nil {
