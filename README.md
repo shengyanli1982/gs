@@ -17,8 +17,8 @@ English | [中文](./README_CN.md)
 3. Use the `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` method to wait for the `TerminateSignal` instance to gracefully shut down.
 
 > [!IMPORTANT]
-> 
-> It is strongly recommended to use the latest general version **v0.1.3** of the library. Previous versions have significant logic and control issues and are no longer recommended.
+>
+> It is strongly recommended to use the latest stable version of the library after **v0.1.3**. Previous versions have significant logic and control issues and are no longer recommended.
 
 # Advantages
 
@@ -88,9 +88,14 @@ go get github.com/shengyanli1982/gs
 > `ForceSyncClose` is completely synchronous, while `SyncClose` is asynchronous in each `TerminateSignal`.
 
 > [!IMPORTANT]
+>
 > The `WaitingForGracefulShutdown` method is deprecated since v0.1.3. It is recommended to use the `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` methods instead.
 
 ### Example
+
+> [!TIP]
+>
+> The `os.Process.Signal()` method only works on Linux and MacOS, and is invalid for Windows. If you want to test the code on Windows, please refer to the `gracefull_windows_test.go` code.
 
 ```go
 package main
@@ -162,8 +167,8 @@ func main() {
 			fmt.Println(err.Error())
 		}
 
-		// 向当前进程发送中断信号
-		// Send an interrupt signal to the current process
+		// 向当前进程发送中断信号, os.Process.Signal() 对 Linux 和 MacOS 有效, Windows 无效
+		// Send an interrupt signal to the current process, os.Process.Signal() is valid for Linux and MacOS, invalid for Windows
 		err = p.Signal(os.Interrupt)
 		if err != nil {
 			fmt.Println(err.Error())
