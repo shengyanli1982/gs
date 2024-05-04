@@ -16,7 +16,7 @@ func TestWaitForAsync_Signal(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 	}
 
 	go func() {
@@ -36,7 +36,7 @@ func TestWaitForAsync_Wait(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sig := NewTerminateSignal()
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 		sigs = append(sigs, sig)
 	}
 
@@ -56,7 +56,7 @@ func TestWaitForSync_Signal(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 	}
 
 	go func() {
@@ -76,7 +76,7 @@ func TestWaitForSync_Wait(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sig := NewTerminateSignal()
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 		sigs = append(sigs, sig)
 	}
 
@@ -96,7 +96,7 @@ func TestWaitForForceSync_Signal(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 	}
 
 	go func() {
@@ -116,7 +116,7 @@ func TestWaitForForceSync_Wait(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sig := NewTerminateSignal()
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 		sigs = append(sigs, sig)
 	}
 

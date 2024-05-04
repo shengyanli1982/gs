@@ -22,8 +22,8 @@ type TerminateSignal struct {
 	// wg is a sync.WaitGroup instance, used to wait for all goroutines to complete
 	wg sync.WaitGroup
 
-	// handles 是一个函数切片，包含了所有需要在终止信号发生时执行的回调函数
-	// handles is a function slice, containing all callback functions that need to be executed when the termination signal occurs
+	// handles 是一个函数切片，包含了所有需要在终止信号发生时执行的处理函数
+	// handles is a function slice, containing all handle functions that need to be executed when the termination signal occurs
 	handles []func()
 
 	// once 是一个 sync.Once 实例，用于确保某个操作只执行一次
@@ -45,8 +45,8 @@ func NewTerminateSignalWithContext(ctx context.Context) *TerminateSignal {
 		// wg is a sync.WaitGroup instance, used to wait for all goroutines to complete
 		wg: sync.WaitGroup{},
 
-		// exec 是一个函数切片，包含了所有需要在终止信号发生时执行的回调函数
-		// exec is a function slice, containing all callback functions that need to be executed when the termination signal occurs
+		// handles 是一个函数切片，包含了所有需要在终止信号发生时执行的处理函数
+		// handles is a function slice, containing all handle functions that need to be executed when the termination signal occurs
 		handles: make([]func(), 0),
 
 		// once 是一个 sync.Once 实例，用于确保某个操作只执行一次
@@ -79,9 +79,9 @@ func NewTerminateSignal() *TerminateSignal {
 	return NewTerminateSignalWithContext(context.Background())
 }
 
-// RegisterCancelCallback 注册需要取消的回调函数
-// RegisterCancelCallback registers the callback functions to be canceled
-func (s *TerminateSignal) RegisterCancelCallback(callbacks ...func()) {
+// RegisterCancelHandles 注册需要取消的处理函数
+// RegisterCancelHandles registers the handle functions to be canceled
+func (s *TerminateSignal) RegisterCancelHandles(handles ...func()) {
 	// 如果 TerminateSignal 已经关闭，那么直接返回
 	// If the TerminateSignal is already closed, then return directly
 	if s.closed.Load() {
@@ -90,7 +90,7 @@ func (s *TerminateSignal) RegisterCancelCallback(callbacks ...func()) {
 
 	// 将回调函数添加到 s.exec 切片中
 	// Add the callback functions to the s.exec slice
-	s.handles = append(s.handles, callbacks...)
+	s.handles = append(s.handles, handles...)
 }
 
 // GetStopContext 获取停止信号的 Context

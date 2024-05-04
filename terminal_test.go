@@ -25,7 +25,7 @@ func TestTerminateSignal_Standard(t *testing.T) {
 	sig := NewTerminateSignal()
 	assert.NotNil(t, sig, "signal is nil")
 	tts := NewTestTerminateSignal("test")
-	sig.RegisterCancelCallback(tts.Close)
+	sig.RegisterCancelHandles(tts.Close)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	sig.Close(&wg)
@@ -37,7 +37,7 @@ func TestTerminateSignal_WithContext(t *testing.T) {
 	sig := NewTerminateSignalWithContext(ctx)
 	assert.NotNil(t, sig, "signal is nil")
 	tts := NewTestTerminateSignal("test")
-	sig.RegisterCancelCallback(tts.Close)
+	sig.RegisterCancelHandles(tts.Close)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	sig.Close(&wg)
@@ -50,7 +50,7 @@ func TestTerminateSignal_MultiRegisters(t *testing.T) {
 	assert.Equal(t, sig.GetStopContext().Err(), nil)
 	for i := 0; i < 11; i++ {
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 	}
 	sig.Close(nil)
 }
@@ -61,7 +61,7 @@ func TestTerminateSignal_MultiRegisters_Sync(t *testing.T) {
 	assert.Equal(t, sig.GetStopContext().Err(), nil)
 	for i := 0; i < 10; i++ {
 		tts := NewTestTerminateSignal(fmt.Sprintf("test-%d", i))
-		sig.RegisterCancelCallback(tts.Close)
+		sig.RegisterCancelHandles(tts.Close)
 	}
 	sig.SyncClose(nil)
 }

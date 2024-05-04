@@ -49,9 +49,9 @@ func main() {
 	t2 := &testTerminateSignal2{}
 	t3 := &testTerminateSignal3{}
 
-	// 注册需要在终止信号发生时执行的回调函数
-	// Register the callback functions to be executed when the termination signal occurs
-	s.RegisterCancelCallback(t1.Close, t2.Shutdown, t3.Terminate)
+	// 注册需要在终止信号发生时执行的处理函数
+	// Register the handle functions to be executed when the termination signal occurs
+	s.RegisterCancelHandles(t1.Close, t2.Shutdown, t3.Terminate)
 
 	// 在新的 goroutine 中执行一个函数
 	// Execute a function in a new goroutine
