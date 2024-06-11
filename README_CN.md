@@ -10,11 +10,11 @@
 
 # 介绍
 
-**优雅关闭** 是大多数服务的常见需求。当服务接收到终止信号时，优雅地关闭服务被认为是最佳实践。优雅关闭的过程通常包括以下步骤：
+**优雅关闭** 是大多数服务的常见需求。当服务接收到终止信号时，优雅地关闭服务被认为是一种最佳实践。优雅关闭的过程通常包括以下步骤：
 
-1. 创建一个`TerminateSignal`实例并注册所需的终止信号。
+1. 创建一个 `TerminateSignal` 实例并注册所需的终止信号。
 2. 注册在服务终止时需要关闭的资源。
-3. 使用`WaitForAsync`、`WaitForSync`或`WaitForForceSync`方法等待`TerminateSignal`实例优雅地关闭。
+3. 使用 `WaitForAsync`、`WaitForSync` 或 `WaitForForceSync` 方法等待 `TerminateSignal` 实例优雅地关闭。
 
 > [!IMPORTANT]
 >
@@ -49,7 +49,7 @@ go get github.com/shengyanli1982/gs
 
 ### 方法
 
-**创建**
+**创建实例**
 
 -   `NewTerminateSignal`：创建一个新的 `TerminateSignal` 实例。
 -   `NewTerminateSignalWithContext`：创建一个带有上下文的新的 `TerminateSignal` 实例。
