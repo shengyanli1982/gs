@@ -2,7 +2,6 @@ package gs
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 )
@@ -29,6 +28,10 @@ type TerminateSignal struct {
 	// once 是一个 sync.Once 实例，用于确保某个操作只执行一次
 	// once is a sync.Once instance, used to ensure that an operation is only performed once
 	once sync.Once
+
+	// mu 是一个 sync.Mutex 实例，用于保护 handles 切片的并发读写和 closed 检查的原子性
+	// mu is a sync.Mutex instance, used to protect concurrent read/write of the handles slice and the atomicity of the closed check
+	mu sync.Mutex
 
 	// closed 是一个 atomic.Bool 实例，用于标记 TerminateSignal 是否已经关闭
 	// closed is an atomic.Bool instance, used to mark whether the TerminateSignal is closed
@@ -82,14 +85,19 @@ func NewTerminateSignal() *TerminateSignal {
 // RegisterCancelHandles 注册需要取消的处理函数
 // RegisterCancelHandles registers the handle functions to be canceled
 func (s *TerminateSignal) RegisterCancelHandles(handles ...func()) {
+	// 加锁以确保 closed 检查和 handles append 的原子性，防止与 close() 产生竞态
+	// Lock to ensure atomicity of closed check and handles append, preventing race with close()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// 如果 TerminateSignal 已经关闭，那么直接返回
 	// If the TerminateSignal is already closed, then return directly
 	if s.closed.Load() {
 		return
 	}
 
-	// 将回调函数添加到 s.exec 切片中
-	// Add the callback functions to the s.exec slice
+	// 将回调函数添加到 s.handles 切片中
+	// Add the callback functions to the s.handles slice
 	s.handles = append(s.handles, handles...)
 }
 
@@ -108,16 +116,8 @@ func (s *TerminateSignal) worker(fn func()) {
 	// Call the Done method when the function returns
 	defer s.wg.Done()
 
-	// 如果 s.ctx 已经超时的话，那么直接返回
-	// If s.ctx has already timed out, then return directly
-	if err := s.ctx.Err(); err != nil {
-		if !errors.Is(err, context.Canceled) {
-			return
-		}
-	}
-
-	// 执行注册待执行的函数
-	// Execute the registered function
+	// 执行注册的回调函数（handler 是清理函数，应始终执行）
+	// Execute the registered callback function (handlers are cleanup functions and should always execute)
 	fn()
 }
 
@@ -131,42 +131,67 @@ func (s *TerminateSignal) close(closeMode CloseType, wg *sync.WaitGroup) {
 		// Set the value of closed to true, indicating that the TerminateSignal is closed
 		s.closed.Store(true)
 
-		// 遍历所有的回调函数
-		// Iterate over all callback functions
-		for _, fn := range s.handles {
-			// 如果回调函数不为空
-			// If the callback function is not null
-			if fn != nil {
-				// 增加等待组的计数，表示有一个新的任务需要等待完成
-				// Increase the count of the wait group, indicating that there is a new task to wait for completion
-				s.wg.Add(1)
+		// 先取消 context，向持有 ctx 的后台工作通知关闭已开始
+		// Cancel the context first to signal shutdown to workers holding ctx
+		s.cancel()
 
-				// 根据关闭模式进行不同的处理
-				// Handle differently according to the close mode
-				switch closeMode {
-				// ASyncClose 表示异步关闭
-				// ASyncClose indicates asynchronous close
-				case ASyncClose:
-					// 在新的 goroutine 中执行 worker 函数，这样可以并发执行多个任务
-					// Execute the worker function in a new goroutine, so that multiple tasks can be executed concurrently
+		// 根据关闭模式进行不同的处理
+		// Handle differently according to the close mode
+		switch closeMode {
+		// ASyncClose 表示异步关闭
+		// ASyncClose indicates asynchronous close
+		case ASyncClose:
+			// 在 mutex 保护下直接遍历 handles 并分发 goroutine，无需拷贝快照
+			// Iterate handles directly under mutex and dispatch goroutines, no snapshot copy needed
+			s.mu.Lock()
+			// 统计非空回调数量，批量增加等待组计数
+			// Count non-nil callbacks and batch add to wait group
+			n := 0
+			for _, fn := range s.handles {
+				if fn != nil {
+					n++
+				}
+			}
+			s.wg.Add(n)
+			// 在新的 goroutine 中并发执行每个回调函数
+			// Execute each callback function concurrently in a new goroutine
+			for _, fn := range s.handles {
+				if fn != nil {
 					go s.worker(fn)
+				}
+			}
+			s.mu.Unlock()
 
-				// SyncClose 表示同步关闭
-				// SyncClose indicates synchronous close
-				case SyncClose:
-					// 在当前 goroutine 中执行 worker 函数，这样可以保证任务按顺序执行
-					// Execute the worker function in the current goroutine, so that tasks can be executed in order
+		// SyncClose 表示同步关闭
+		// SyncClose indicates synchronous close
+		case SyncClose:
+			// 在 mutex 保护下获取 handles 快照，因为同步 handler 执行时间可能较长，不能持锁执行
+			// Get a snapshot of handles under mutex, since sync handlers may take long and we cannot hold the lock
+			s.mu.Lock()
+			handles := make([]func(), len(s.handles))
+			copy(handles, s.handles)
+			s.mu.Unlock()
+
+			// 统计非空回调数量，批量增加等待组计数
+			// Count non-nil callbacks and batch add to wait group
+			n := 0
+			for _, fn := range handles {
+				if fn != nil {
+					n++
+				}
+			}
+			s.wg.Add(n)
+			// 在当前 goroutine 中按顺序执行每个回调函数
+			// Execute each callback function in the current goroutine in order
+			for _, fn := range handles {
+				if fn != nil {
 					s.worker(fn)
 				}
 			}
 		}
 
-		// 取消 context
-		// Cancel the context
-		s.cancel()
-
-		// 等待所有的 worker 完成
-		// Wait for all workers to complete
+		// 等待所有的 handler 完成
+		// Wait for all handlers to complete
 		s.wg.Wait()
 
 		// 如果外部的等待组不为空，调用 Done 方法
