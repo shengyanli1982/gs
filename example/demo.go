@@ -67,8 +67,8 @@ func main() {
 			fmt.Println(err.Error())
 		}
 
-		// 向当前进程发送中断信号, os.Process.Signal() 对 Linux 和 MacOS 有效, Windows 无效
-		// Send an interrupt signal to the current process, os.Process.Signal() is valid for Linux and MacOS, invalid for Windows
+		// 向当前进程发送中断信号, os.Process.Signal() 对 Linux 和 MacOS 有效, 在无控制台的 Windows 环境无效
+		// Send an interrupt signal to the current process, os.Process.Signal() is valid for Linux and MacOS, invalid on Windows without a console
 		err = p.Signal(os.Interrupt)
 		if err != nil {
 			fmt.Println(err.Error())
