@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/gs)](https://goreportcard.com/report/github.com/shengyanli1982/gs)
 [![Build Status](https://github.com/shengyanli1982/gs/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/gs/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/gs.svg)](https://pkg.go.dev/github.com/shengyanli1982/gs)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/shengyanli1982/gs)](https://golang.org/doc/go1.19)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/shengyanli1982/gs)](https://golang.org/doc/go1.23)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shengyanli1982/gs)
 
 # GS - Graceful Shutdown
@@ -100,7 +100,7 @@ sig.RegisterCancelHandles(
 )
 ```
 
-**Note:** Handlers are executed in the order they were registered. The registration is concurrent-safe.
+**Note:** Handlers are executed in registration order only in `ForceSyncClose` mode (via `SyncClose`); in the other modes they may run concurrently. Handler registration is concurrent-safe.
 
 ### Shutdown Modes
 
@@ -168,6 +168,8 @@ wg.Add(1)
 sig.Close(&wg)
 wg.Wait()
 ```
+
+**Note:** `Close`/`SyncClose` are idempotent. The first call performs the shutdown; concurrent or subsequent calls block until the shutdown completes, and the wait group of **every** caller is signaled (`Done`) exactly once. Calling `Close`/`SyncClose` on the same instance from inside a handler is not supported and will deadlock.
 
 ### Context Integration
 
@@ -300,8 +302,8 @@ func main() {
 ### Concurrent Safety
 
 - **Handler registration** is thread-safe and can be called from multiple goroutines
-- **Shutdown execution** is protected by `sync.Once` to prevent duplicate shutdowns
-- **Handler list** is protected by mutex during registration and execution
+- **Shutdown execution** is guarded by an atomic election: the shutdown sequence runs exactly once, while concurrent or repeated `Close` callers block until it completes
+- **Handler list** is protected by mutex during registration and the close-time swap; handlers run from the snapshot taken at close time, without holding the lock
 
 ### Signal Handling
 

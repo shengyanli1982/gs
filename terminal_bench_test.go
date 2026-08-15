@@ -3,6 +3,7 @@ package gs
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -145,13 +146,29 @@ func BenchmarkClose_Sync_ExternalWG(b *testing.B) {
 	}
 }
 
+// BenchmarkConcurrentRegister 测量并发注册时的锁竞争开销。
+// 所有并行 goroutine 通过 atomic.Pointer 共享同一个 sig，以保证测量对象是注册锁竞争；
+// 每个 goroutine 累计注册 1024 次后重建 sig，使状态有界，避免向同一切片无限 append 带来的扩容噪声
+// BenchmarkConcurrentRegister measures the lock contention overhead of concurrent registration.
+// All parallel goroutines share one sig via atomic.Pointer so the benchmark measures registration
+// lock contention; each goroutine rebuilds the sig every 1024 registrations to bound the state and
+// avoid the growth noise of appending to the same slice forever
 func BenchmarkConcurrentRegister(b *testing.B) {
 	noop := func() {}
-	sig := NewTerminateSignal()
+	var current atomic.Pointer[TerminateSignal]
+	current.Store(NewTerminateSignal())
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
+		count := 0
 		for pb.Next() {
-			sig.RegisterCancelHandles(noop)
+			current.Load().RegisterCancelHandles(noop)
+			count++
+			// 达到阈值后重建 sig（多个 goroutine 可能同时重建，最后写入者生效，语义无害）
+			// Rebuild the sig once the threshold is reached (multiple goroutines may rebuild concurrently; the last writer wins, which is harmless)
+			if count == 1024 {
+				current.Store(NewTerminateSignal())
+				count = 0
+			}
 		}
 	})
 }
