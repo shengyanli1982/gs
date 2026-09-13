@@ -14,7 +14,7 @@
 
 > [!IMPORTANT]
 >
-> This library is recommended for production use. Previous versions (< v0.2.0) had significant logic and concurrency issues and are no longer maintained.
+> This library is recommended for production use. Versions before v0.1.7 had significant logic and concurrency issues and are no longer maintained; upgrading to the latest release (v0.1.8 or later) is recommended.
 
 ## Features
 
@@ -37,6 +37,7 @@ go get github.com/shengyanli1982/gs
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -69,8 +70,8 @@ func main() {
 
 	// Graceful HTTP shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 	server.Shutdown(ctx)
+	cancel()
 
 	fmt.Println("Server shutdown gracefully.")
 	os.Exit(0)
@@ -223,26 +224,26 @@ func main() {
 	sig := gs.NewTerminateSignal()
 	db := &Database{connected: true}
 
-	// Register handlers in dependency order
+	server := &http.Server{Addr: ":8080"}
+
+	// Register handlers in dependency order: stop the HTTP server first
+	// (drain in-flight requests), then close the database.
+	// Handlers run in registration order only in force-sync mode.
 	sig.RegisterCancelHandles(
 		func() {
 			fmt.Println("Stopping HTTP server...")
-			time.Sleep(100 * time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			server.Shutdown(ctx)
 			fmt.Println("HTTP server stopped.")
 		},
 		db.Close,
 	)
 
-	server := &http.Server{Addr: ":8080"}
 	go server.ListenAndServe()
 
 	fmt.Println("Server running on :8080")
-	gs.WaitForSync(sig)
-
-	// Graceful HTTP shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	server.Shutdown(ctx)
+	gs.WaitForForceSync(sig)
 
 	fmt.Println("All services shutdown gracefully.")
 }
@@ -255,7 +256,6 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/shengyanli1982/gs"
@@ -305,6 +305,10 @@ func main() {
 - **Shutdown execution** is guarded by an atomic election: the shutdown sequence runs exactly once, while concurrent or repeated `Close` callers block until it completes
 - **Handler list** is protected by mutex during registration and the close-time swap; handlers run from the snapshot taken at close time, without holding the lock
 
+### Panic Behavior
+
+A panic inside a handler is **not** recovered; it propagates up the call stack. In that case the internal `done` channel is never closed, so if an outer caller recovers the panic itself, subsequent or concurrent `Close`/`SyncClose` calls on the same instance will block forever.
+
 ### Signal Handling
 
 The library listens for these OS signals:
@@ -317,7 +321,7 @@ The library listens for these OS signals:
 
 > [!WARNING]
 >
-> The `WaitingForGracefulShutdown` method is deprecated since v0.2.0. Use `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` instead.
+> The `WaitingForGracefulShutdown` method is deprecated since v0.1.3. Use `WaitForAsync`, `WaitForSync`, or `WaitForForceSync` instead.
 
 ```go
 // Old (deprecated)
@@ -329,17 +333,19 @@ gs.WaitForAsync(sig)  // or WaitForSync, WaitForForceSync
 
 ## Platform Notes
 
-- **Windows:** Use with console applications. The library uses Windows console control events.
+- **Windows:** Use with console applications. The library uses Windows console control events. `SIGQUIT` has no delivery path on Windows: `Ctrl+C` and `Ctrl+Break` map to `SIGINT`, while console close, logoff, and shutdown events map to `SIGTERM`. After `CTRL_CLOSE_EVENT`, the operating system force-terminates the process after roughly 5 seconds, so cleanup logic must complete within that window.
 - **Unix/Linux/macOS:** Full support for SIGINT, SIGTERM, and SIGQUIT.
 
 ## Benchmarks
 
 ```
-BenchmarkNewTerminateSignal-10         	26520704	87.51 ns/op	192 B/op	3 allocs/op
-BenchmarkRegisterCancelHandles_10-10   	 6428458	363.0 ns/op	440 B/op	8 allocs/op
-BenchmarkClose_Async_10Handlers-10     	 679658	4432 ns/op	760 B/op	19 allocs/op
-BenchmarkClose_Sync_10Handlers-10      	2443123	976.1 ns/op	520 B/op	9 allocs/op
+BenchmarkNewTerminateSignal-12         	12139200	95.17 ns/op	304 B/op	4 allocs/op
+BenchmarkRegisterCancelHandles_10-12   	 3855764	315.7 ns/op	496 B/op	6 allocs/op
+BenchmarkClose_Async_10Handlers-12     	  317998	3635 ns/op	736 B/op	16 allocs/op
+BenchmarkClose_Sync_10Handlers-12      	 2576282	451.6 ns/op	496 B/op	6 allocs/op
 ```
+
+*Measured with Go 1.25 on Windows (Intel i5-12400F), median of `-count=3`.*
 
 ## License
 
