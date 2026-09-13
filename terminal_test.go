@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type TestTerminateSignal struct {
@@ -277,4 +278,132 @@ func TestTerminateSignal_Close_NoHandlers(t *testing.T) {
 	sig2.SyncClose(&wg2)
 	waitGroupDone(t, &wg2)
 	assert.Error(t, sig2.GetStopContext().Err(), "context should be canceled after SyncClose")
+}
+
+// TestTerminateSignal_SyncClose_Order 验证 SyncClose 按注册顺序执行 handler（README 承诺的注册顺序语义）
+// TestTerminateSignal_SyncClose_Order verifies that SyncClose executes handlers in registration order (the registration-order semantics promised by the README)
+func TestTerminateSignal_SyncClose_Order(t *testing.T) {
+	sig := NewTerminateSignal()
+	require.NotNil(t, sig)
+
+	// SyncClose 在当前 goroutine 中顺序执行，append 共享切片不存在并发访问，无需加锁
+	// SyncClose executes sequentially in the current goroutine, so appending to the shared slice has no concurrent access and needs no lock
+	var order []int
+	for i := 0; i < 5; i++ {
+		// Go 1.22+ 循环变量按迭代独立，闭包可直接捕获 i
+		// Go 1.22+ loop variables are per-iteration, closures can capture i directly
+		sig.RegisterCancelHandles(func() {
+			order = append(order, i)
+		})
+	}
+
+	sig.SyncClose(nil)
+
+	// handler 必须严格按注册顺序 0,1,2,3,4 执行
+	// Handlers must run strictly in registration order 0,1,2,3,4
+	assert.Equal(t, []int{0, 1, 2, 3, 4}, order)
+}
+
+// TestTerminateSignal_NilHandler_Skipped 验证两种关闭模式下 nil handler 均被跳过：合法 handler 正常执行、不 panic、外部等待组被 Done
+// TestTerminateSignal_NilHandler_Skipped verifies that nil handlers are skipped in both close modes: valid handlers still run, no panic occurs, and the external wait group is Done
+func TestTerminateSignal_NilHandler_Skipped(t *testing.T) {
+	// 两种模式各验一次 nil 跳过路径：ASyncClose（Close）与 SyncClose
+	// Exercise the nil-skip path once per mode: ASyncClose (Close) and SyncClose
+	modes := []struct {
+		name  string
+		close func(sig *TerminateSignal, wg *sync.WaitGroup)
+	}{
+		{"Close", (*TerminateSignal).Close},
+		{"SyncClose", (*TerminateSignal).SyncClose},
+	}
+
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			sig := NewTerminateSignal()
+			require.NotNil(t, sig)
+
+			// close 返回前所有 handler 均已执行完毕（ASync 模式在 close 内部 wg.Wait），原子计数保证读取无竞态
+			// All handlers have completed before close returns (the ASync mode waits via wg.Wait inside close); the atomic counter guarantees a race-free read
+			var executed atomic.Int32
+			valid := func() { executed.Add(1) }
+
+			// 注册 [valid, nil, valid]，nil 位于中间，必须被跳过且不引发 panic
+			// Register [valid, nil, valid]; the nil sits in the middle and must be skipped without panicking
+			sig.RegisterCancelHandles(valid, nil, valid)
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+			require.NotPanics(t, func() { mode.close(sig, &wg) })
+
+			// 两个合法 handler 都必须执行，nil 被静默跳过
+			// Both valid handlers must run; the nil is silently skipped
+			assert.Equal(t, int32(2), executed.Load(), "both valid handlers should have run")
+
+			// 外部等待组必须被 Done 恰好一次（沿用文件内既有超时模式，避免永挂）
+			// The external wait group must be Done exactly once (reusing the existing timeout pattern in this file to avoid hanging forever)
+			waitGroupDone(t, &wg)
+			assert.Error(t, sig.GetStopContext().Err(), "context should be canceled after close")
+		})
+	}
+}
+
+// TestTerminateSignal_LoserBlocksUntilWinnerDone 验证输家 Close 会阻塞到赢家完成整个关闭流程后才返回
+// TestTerminateSignal_LoserBlocksUntilWinnerDone verifies that a loser Close blocks until the winner has finished the entire shutdown sequence
+func TestTerminateSignal_LoserBlocksUntilWinnerDone(t *testing.T) {
+	sig := NewTerminateSignal()
+	require.NotNil(t, sig)
+
+	// started 通告赢家已进入 handler；release 控制 handler 何时结束（用 channel 编排时序，避免裸阻塞）
+	// started announces that the winner has entered the handler; release controls when the handler finishes (channels orchestrate the timing, avoiding raw blocking)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	sig.RegisterCancelHandles(func() {
+		close(started)
+		<-release
+	})
+
+	// goroutine A 先调用 Close 成为赢家，并卡在慢 handler 中
+	// Goroutine A calls Close first, becomes the winner, and gets stuck in the slow handler
+	winnerDone := make(chan struct{})
+	go func() {
+		defer close(winnerDone)
+		sig.Close(nil)
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("winner handler did not start within timeout")
+	}
+
+	// goroutine B 后调用 Close 成为输家，必须阻塞在 <-s.done 上等待赢家完成
+	// Goroutine B calls Close afterwards, becomes the loser, and must block on <-s.done waiting for the winner
+	loserDone := make(chan struct{})
+	go func() {
+		defer close(loserDone)
+		sig.Close(nil)
+	}()
+
+	// 赢家尚未完成时，B 不得提前返回（100ms 观察窗口）
+	// While the winner has not finished, B must not return early (100ms observation window)
+	select {
+	case <-loserDone:
+		t.Fatal("loser returned before the winner finished")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// 释放慢 handler：赢家关闭 done 通道后，B 应被唤醒并在超时内返回
+	// Release the slow handler: once the winner closes the done channel, B should be woken up and return within the timeout
+	close(release)
+
+	select {
+	case <-winnerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("winner did not finish within timeout")
+	}
+	select {
+	case <-loserDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("loser did not finish within timeout")
+	}
 }

@@ -7,21 +7,36 @@ import (
 	"testing"
 )
 
+// benchSink 是包级汇（sink），用于承接构造函数基准的结果，防止编译器判定结果未被使用而消除被测分配与内联，导致少报
+// benchSink is a package-level sink that receives the results of constructor benchmarks, preventing the compiler from treating the results as unused and eliminating the measured allocations and inlining, which would under-report
+var benchSink *TerminateSignal
+
+// 去伪影说明：原实现丢弃构造结果，编译器可消除分配；且 NewTerminateSignalWithContext 可被内联（cost 76≤80），
+// 导致 t 假性留栈、少报 1 alloc/96B。赋值给 benchSink 后，本基准反映生产真实成本
+// Artifact-removal note: the original implementation discarded the constructed value, letting the compiler eliminate allocations; also NewTerminateSignalWithContext was inlinable (cost 76≤80),
+// causing t to falsely stay on the stack and under-reporting 1 alloc/96B. Assigning to benchSink makes this benchmark reflect the true production cost
 func BenchmarkNewTerminateSignal(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		NewTerminateSignal()
+		benchSink = NewTerminateSignal()
 	}
 }
 
+// 去伪影说明：同上，赋值给 benchSink 防止内联与分配消除；
+// 预期本基准从 3 allocs 变为 4 allocs——这是去除测量伪影，不是性能回归
+// Artifact-removal note: same as above, assigning to benchSink prevents inlining and allocation elimination;
+// this benchmark is expected to change from 3 allocs to 4 allocs — that is removing a measurement artifact, not a performance regression
 func BenchmarkNewTerminateSignalWithContext(b *testing.B) {
+	b.ReportAllocs()
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		NewTerminateSignalWithContext(ctx)
+		benchSink = NewTerminateSignalWithContext(ctx)
 	}
 }
 
 func BenchmarkRegisterCancelHandles_Single(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -30,6 +45,7 @@ func BenchmarkRegisterCancelHandles_Single(b *testing.B) {
 }
 
 func BenchmarkRegisterCancelHandles_10(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -40,6 +56,7 @@ func BenchmarkRegisterCancelHandles_10(b *testing.B) {
 }
 
 func BenchmarkRegisterCancelHandles_100(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -50,6 +67,7 @@ func BenchmarkRegisterCancelHandles_100(b *testing.B) {
 }
 
 func BenchmarkRegisterCancelHandles_Batch10(b *testing.B) {
+	b.ReportAllocs()
 	handles := make([]func(), 10)
 	for i := range handles {
 		handles[i] = func() {}
@@ -61,6 +79,7 @@ func BenchmarkRegisterCancelHandles_Batch10(b *testing.B) {
 }
 
 func BenchmarkClose_Async_1Handler(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -70,6 +89,7 @@ func BenchmarkClose_Async_1Handler(b *testing.B) {
 }
 
 func BenchmarkClose_Async_10Handlers(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -81,6 +101,7 @@ func BenchmarkClose_Async_10Handlers(b *testing.B) {
 }
 
 func BenchmarkClose_Async_100Handlers(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -92,6 +113,7 @@ func BenchmarkClose_Async_100Handlers(b *testing.B) {
 }
 
 func BenchmarkClose_Sync_1Handler(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -101,6 +123,7 @@ func BenchmarkClose_Sync_1Handler(b *testing.B) {
 }
 
 func BenchmarkClose_Sync_10Handlers(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -112,6 +135,7 @@ func BenchmarkClose_Sync_10Handlers(b *testing.B) {
 }
 
 func BenchmarkClose_Sync_100Handlers(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -123,6 +147,7 @@ func BenchmarkClose_Sync_100Handlers(b *testing.B) {
 }
 
 func BenchmarkClose_Async_ExternalWG(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -135,6 +160,7 @@ func BenchmarkClose_Async_ExternalWG(b *testing.B) {
 }
 
 func BenchmarkClose_Sync_ExternalWG(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -154,6 +180,7 @@ func BenchmarkClose_Sync_ExternalWG(b *testing.B) {
 // lock contention; each goroutine rebuilds the sig every 1024 registrations to bound the state and
 // avoid the growth noise of appending to the same slice forever
 func BenchmarkConcurrentRegister(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	var current atomic.Pointer[TerminateSignal]
 	current.Store(NewTerminateSignal())
@@ -174,6 +201,7 @@ func BenchmarkConcurrentRegister(b *testing.B) {
 }
 
 func BenchmarkFullLifecycle_Async10(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()
@@ -185,6 +213,7 @@ func BenchmarkFullLifecycle_Async10(b *testing.B) {
 }
 
 func BenchmarkFullLifecycle_Sync10(b *testing.B) {
+	b.ReportAllocs()
 	noop := func() {}
 	for i := 0; i < b.N; i++ {
 		sig := NewTerminateSignal()

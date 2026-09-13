@@ -18,7 +18,7 @@
 
 > [!IMPORTANT]
 >
-> 强烈建议使用 **v0.1.3** 之后最新稳定的版本。之前的版本存在重要的逻辑和控制问题，不再推荐使用。
+> 强烈建议升级到最新版本（**v0.1.8** 及以上）。v0.1.7 之前的版本存在重要的逻辑与并发缺陷，已不再维护。
 
 # 优势
 
@@ -45,6 +45,9 @@ go get github.com/shengyanli1982/gs
 > [!IMPORTANT]
 >
 > 如果您在 `Windows` 上使用 `GS`，只能使用于 `console` 应用程序。
+>
+> -   `SIGQUIT` 在 Windows 上没有投递路径：`Ctrl+C` 与 `Ctrl+Break` 映射为 `SIGINT`；控制台关闭、注销与系统关机事件映射为 `SIGTERM`。
+> -   收到 `CTRL_CLOSE_EVENT` 后，操作系统约 5 秒后会强制终止进程，清理逻辑必须能在该窗口内完成。
 
 ### 方法
 
@@ -60,6 +63,14 @@ go get github.com/shengyanli1982/gs
 -   `Close`：异步关闭 `TerminateSignal` 实例。
 -   `SyncClose`：同步关闭 `TerminateSignal` 实例。
 
+> [!IMPORTANT]
+>
+> `Close`/`SyncClose` 是幂等的：首个调用者执行关闭流程，并发或后续的调用会阻塞直至关闭完成，且每个调用者传入的外部 `WaitGroup` 都会被恰好执行一次 `Done`。
+>
+> 不支持在处理函数（handler）内部对同一实例再次调用 `Close`/`SyncClose`，这会导致死锁。
+>
+> 处理函数中的 `panic` 不会被恢复（recover），将沿调用栈向上传播。
+
 **等待**
 
 -   `WaitForAsync`：异步等待 `TerminateSignal` 实例优雅关闭。
@@ -68,18 +79,26 @@ go get github.com/shengyanli1982/gs
 
 > [!NOTE]
 >
+> **三种等待模式的执行语义**：
+>
+> -   `WaitForAsync`：多个 `TerminateSignal` 之间并行执行；每个 `TerminateSignal` 内的处理函数并发执行。
+> -   `WaitForSync`：多个 `TerminateSignal` 之间串行执行；每个 `TerminateSignal` 内的处理函数并发执行。
+> -   `WaitForForceSync`：多个 `TerminateSignal` 之间与每个 `TerminateSignal` 内部均串行执行，处理函数按注册顺序依次执行。
+
+> [!NOTE]
+>
 > **`同步关闭 (SyncClose)` 和 `严格同步关闭 (ForceSyncClose)` 的区别**
 >
 > ```go
-> // SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() >then t3.Close()
+> // SyncClose 表示同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
 > // 在每个 TerminateSignal 中，是异步执行的
-> // SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously >in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // SyncClose represents synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
 > // In each TerminateSignal, it is asynchronous
 > SyncClose
 >
-> // ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.>Close() then t3.Close()
+> // ForceSyncClose 表示强制同步关闭，即在不同的 TerminateSignal 中同步执行关闭操作, eg: t1.Close() then t2.Close() then t3.Close()
 > // 在每个 TerminateSignal 中，是完全同步执行的
-> // ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed >synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
+> // ForceSyncClose represents forced synchronous closure, i.e., the closure operation is performed synchronously in different TerminateSignal, eg: t1.Close() then t2.Close() then t3.Close()
 > // In each TerminateSignal, it is completely synchronous
 > ForceSyncClose
 > ```

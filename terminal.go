@@ -170,31 +170,32 @@ func (s *TerminateSignal) close(closeMode CloseType, wg *sync.WaitGroup) {
 				}
 			}
 
+			// 等待所有的 handler 完成（仅异步路径需要等待；同步路径不经过 s.wg，计数恒为 0，移出后行为不变）
+			// Wait for all handlers to complete (only the async path needs to wait; the sync path bypasses s.wg so its counter is always 0, and moving the wait here changes no behavior)
+			s.wg.Wait()
+
 		// SyncClose 表示同步关闭
 		// SyncClose indicates synchronous close
 		case SyncClose:
-			// 统计非空回调数量，批量增加等待组计数
-			// Count non-nil callbacks and batch add to wait group
-			n := 0
+			// 顺序执行无并发协调需求，绕过 wg：在当前 goroutine 中按注册顺序直接调用每个回调函数，
+			// 消除等待组原子操作（Add/Done）在顺序执行下的纯开销（pprof 实证）
+			// Sequential execution has no concurrency-coordination need, so bypass wg: call each callback
+			// directly in the current goroutine in registration order, eliminating the pure overhead of
+			// wait-group atomic operations (Add/Done) on the sequential path (confirmed by pprof)
 			for _, fn := range handles {
 				if fn != nil {
-					n++
+					fn()
 				}
 			}
-			s.wg.Add(n)
 
-			// 在当前 goroutine 中按顺序执行每个回调函数
-			// Execute each callback function in the current goroutine in order
-			for _, fn := range handles {
-				if fn != nil {
-					s.worker(fn)
-				}
-			}
+		// 其余取值不可达：close 是内部函数，当前 2 个调用点均传入合法模式；
+		// 此处显式 panic，消除"误传非法模式时静默丢弃全部 handler"的维护陷阱
+		// Any other value is unreachable: close is an internal function and all 2 current call sites
+		// pass a valid mode; panic explicitly here to eliminate the maintenance trap of silently
+		// dropping all handlers if an invalid mode were ever passed
+		default:
+			panic("gs: unreachable close mode")
 		}
-
-		// 等待所有的 handler 完成
-		// Wait for all handlers to complete
-		s.wg.Wait()
 
 		// 关闭 done 通道，广播关闭已完成，唤醒所有等待中的输家
 		// Close the done channel to broadcast completion and wake up all waiting losers
@@ -215,10 +216,15 @@ func (s *TerminateSignal) close(closeMode CloseType, wg *sync.WaitGroup) {
 // Close 方法异步关闭 TerminateSignal 实例。Close 是幂等的：首个调用者执行实际关闭流程，
 // 并发或后续的调用会阻塞直到关闭完成后才返回；每个调用者传入的外部等待组（不为 nil 时）都会被 Done 恰好一次。
 // 注意：在 handler 内部回调同一实例的 Close 或 SyncClose 属于不支持的用法，会导致死锁。
+// 注意：handler panic 会沿调用栈传播（Close 不做 recover），此时 done 通道不会被关闭；
+// 若外层自行 recover 吞掉 panic，后续或并发的 Close 调用将永久阻塞。
 // The Close method asynchronously closes the TerminateSignal instance. Close is idempotent: the first
 // caller performs the actual shutdown sequence, while concurrent or subsequent callers block until the
 // shutdown completes; the external wait group of every caller (when non-nil) is Done exactly once.
 // Note: calling Close or SyncClose on the same instance from inside a handler is unsupported and will deadlock.
+// Note: a panic inside a handler propagates up the call stack (Close performs no recover) and the done
+// channel is never closed; if the caller recovers the panic itself, subsequent or concurrent Close
+// calls will block forever.
 func (s *TerminateSignal) Close(wg *sync.WaitGroup) {
 	// 调用 close 方法，传入 ASyncClose 作为关闭模式和 wg 作为等待组
 	// Call the close method, passing in ASyncClose as the close mode and wg as the wait group
@@ -229,11 +235,16 @@ func (s *TerminateSignal) Close(wg *sync.WaitGroup) {
 // SyncClose 是幂等的：首个调用者执行实际关闭流程，并发或后续的调用会阻塞直到关闭完成后才返回；
 // 每个调用者传入的外部等待组（不为 nil 时）都会被 Done 恰好一次。
 // 注意：在 handler 内部回调同一实例的 Close 或 SyncClose 属于不支持的用法，会导致死锁。
+// 注意：handler panic 会沿调用栈传播（SyncClose 不做 recover），此时 done 通道不会被关闭；
+// 若外层自行 recover 吞掉 panic，后续或并发的 Close/SyncClose 调用将永久阻塞。
 // The SyncClose method synchronously closes the TerminateSignal instance (handlers run in registration
 // order in the current goroutine). SyncClose is idempotent: the first caller performs the actual shutdown
 // sequence, while concurrent or subsequent callers block until the shutdown completes; the external wait
 // group of every caller (when non-nil) is Done exactly once.
 // Note: calling Close or SyncClose on the same instance from inside a handler is unsupported and will deadlock.
+// Note: a panic inside a handler propagates up the call stack (SyncClose performs no recover) and the done
+// channel is never closed; if the caller recovers the panic itself, subsequent or concurrent
+// Close/SyncClose calls will block forever.
 func (s *TerminateSignal) SyncClose(wg *sync.WaitGroup) {
 	// 调用 close 方法，传入 SyncClose 作为关闭模式和 wg 作为等待组
 	// Call the close method, passing in SyncClose as the close mode and wg as the wait group
